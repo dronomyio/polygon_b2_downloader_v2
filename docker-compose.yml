@@ -1,0 +1,59 @@
+version: "3.8"
+
+volumes:
+  app_data: # Named volume for SQLite database and any other persistent data
+
+services:
+  # Base service definition (optional, using YAML anchors if needed for more complex setups)
+  # x-base-service: &
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - app_data:/app/data # Mount the named volume to /app/data where SQLite DB is stored
+
+  discoverer:
+    # <<: *x-base-service # Uncomment if using YAML anchors
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - app_data:/app/data # Mount the named volume
+      - ./src:/app/src # Optional: Mount src for local development to see code changes without rebuilding
+    # The command for the discoverer will be passed when running, e.g.:
+    # docker-compose run --rm discoverer discoverer historical
+    # docker-compose run --rm discoverer discoverer daily
+    # docker-compose run --rm discoverer discoverer on-demand --dates 2023-01-01,2023-01-02
+    # Entrypoint is defined in Dockerfile as ["python", "-m", "src.main"]
+    # So, the command here appends to that entrypoint.
+    # For one-off tasks like discoverer, `docker-compose run` is more appropriate than `docker-compose up`.
+    # If you wanted `docker-compose up discoverer` to work, you might set a default command here.
+    # command: ["discoverer", "daily"] # Example default if using `up`
+
+  worker:
+    # <<: *x-base-service # Uncomment if using YAML anchors
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - app_data:/app/data # Mount the named volume
+      - ./src:/app/src # Optional: Mount src for local development
+    # The command for the worker. This will run the worker in continuous loop mode by default.
+    # ENTRYPOINT is ["python", "-m", "src.main"], so command is ["worker"]
+    command: ["worker"]
+    # To scale workers: docker-compose up --scale worker=3 -d (for detached mode)
+    # Workers are designed to run continuously.
+    # For graceful shutdown, SIGINT/SIGTERM are handled by the worker script.
+    # depends_on:
+    #   - some_database_service # If using an external DB like Postgres/MySQL in compose
+
+networks:
+  default:
+    driver: bridge
+
