@@ -89,7 +89,23 @@ The application consists of two main components (roles):
 **2. Running the Discoverer Role:**
    The discoverer populates the database with tasks for US Options Day Aggregates. It's typically run as a one-off command.
 
+<<<<<<< HEAD
    *   **Historical Mode (to discover all available US Options Day Aggregates files, or within a date range):**
+=======
+   
+
+   *   **Historical Mode (to discover all available files, or within a date range):**
+
+   *   
+       Historical Mode:
+When you run the discoverer in historical mode (e.g., discoverer historical or discoverer historical --start_date YYYY-MM-DD --end_date YYYY-MM-DD):
+The PolygonClient's list_us_stocks_daily_files method is called. This method queries Polygon.io's S3 storage for files matching the prefix us_stocks_sip/day_aggs_v1/.
+Polygon.io itself organizes its files using this date-based path structure. So, the S3 keys returned by Polygon.io (via the list_objects_v2 S3 API call) will already have the YYYY/YYYY-MM-DD.csv.gz format.
+The list_us_stocks_daily_files method in our PolygonClient then parses the date from each S3 key it finds to see if it falls within the optional start_date and end_date range you might provide. If no range is provided, it attempts to list all matching files.
+Source of YYYY, MM, DD: Directly from the S3 object keys provided by Polygon.io, then filtered by the application if a date range is specified.
+
+     
+>>>>>>> 2a71fca8076908ae62422d1cd8c29536786b63e7
        ```bash
        # Discover all historical US Options Day Aggregates files
        docker-compose run --rm discoverer discoverer historical
@@ -99,13 +115,36 @@ The application consists of two main components (roles):
        ```
        Replace `YYYY-MM-DD` with actual dates.
 
+<<<<<<< HEAD
    *   **Daily Mode (to discover yesterday's US Options Day Aggregates file):**
+=======
+   *   **Daily Mode (to discover yesterday's file):**
+
+   *   When you run the discoverer in daily mode (e.g., discoverer daily):
+The discoverer/main.py script calculates yesterday's date (e.g., if today is 2023-05-14, yesterday was 2023-05-13).
+It then formats this calculated date to get the year (YYYY, e.g., "2023") and the full date string (YYYY-MM-DD, e.g., "2023-05-13").
+It constructs the expected S3 file key using these formatted date parts: f"us_stocks_sip/day_aggs_v1/{year_str}/{date_str}.csv.gz".
+Source of YYYY, MM, DD: Calculated by the application based on the current date (to determine yesterday).
+
+>>>>>>> 2a71fca8076908ae62422d1cd8c29536786b63e7
        ```bash
        docker-compose run --rm discoverer discoverer daily
        ```
        This is suitable for scheduling via cron or a similar task scheduler.
 
+<<<<<<< HEAD
    *   **On-Demand Mode (to discover US Options Day Aggregates files for specific dates):**
+=======
+   *   **On-Demand Mode (to discover files for specific dates):**
+
+   *   When you run the discoverer in on-demand mode with specific dates (e.g., discoverer on-demand --dates YYYY-MM-DD,YYYY-MM-DD):
+The script takes the date strings you provide (e.g., "2023-01-15").
+For each provided date string, it parses it to get the year (YYYY) and the full date string (YYYY-MM-DD).
+It then constructs the S3 file key using these parts, similar to the daily mode: f"us_stocks_sip/day_aggs_v1/{year_str}/{date_str}.csv.gz".
+Source of YYYY, MM, DD: Directly from the date strings provided by you as command-line arguments.
+In all cases, the base path structure us_stocks_sip/day_aggs_v1/ is hardcoded in the PolygonClient as the prefix for listing US stocks daily aggregate files, as this is the known location for these files in Polygon.io's S3 storage. The date components are then either derived from Polygon.io's S3 listing (for historical) or constructed by the application based on the operational mode and any user-provided dates (for daily and on-demand).
+
+>>>>>>> 2a71fca8076908ae62422d1cd8c29536786b63e7
        ```bash
        docker-compose run --rm discoverer discoverer on-demand --dates YYYY-MM-DD,YYYY-MM-DD,...
        ```
