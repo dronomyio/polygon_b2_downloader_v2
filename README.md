@@ -103,12 +103,27 @@ Source of YYYY, MM, DD: Directly from the S3 object keys provided by Polygon.io,
        Replace `YYYY-MM-DD` with actual dates.
 
    *   **Daily Mode (to discover yesterday's file):**
+
+   *   When you run the discoverer in daily mode (e.g., discoverer daily):
+The discoverer/main.py script calculates yesterday's date (e.g., if today is 2023-05-14, yesterday was 2023-05-13).
+It then formats this calculated date to get the year (YYYY, e.g., "2023") and the full date string (YYYY-MM-DD, e.g., "2023-05-13").
+It constructs the expected S3 file key using these formatted date parts: f"us_stocks_sip/day_aggs_v1/{year_str}/{date_str}.csv.gz".
+Source of YYYY, MM, DD: Calculated by the application based on the current date (to determine yesterday).
+
        ```bash
        docker-compose run --rm discoverer discoverer daily
        ```
        This is suitable for scheduling via cron or a similar task scheduler.
 
    *   **On-Demand Mode (to discover files for specific dates):**
+
+   *   When you run the discoverer in on-demand mode with specific dates (e.g., discoverer on-demand --dates YYYY-MM-DD,YYYY-MM-DD):
+The script takes the date strings you provide (e.g., "2023-01-15").
+For each provided date string, it parses it to get the year (YYYY) and the full date string (YYYY-MM-DD).
+It then constructs the S3 file key using these parts, similar to the daily mode: f"us_stocks_sip/day_aggs_v1/{year_str}/{date_str}.csv.gz".
+Source of YYYY, MM, DD: Directly from the date strings provided by you as command-line arguments.
+In all cases, the base path structure us_stocks_sip/day_aggs_v1/ is hardcoded in the PolygonClient as the prefix for listing US stocks daily aggregate files, as this is the known location for these files in Polygon.io's S3 storage. The date components are then either derived from Polygon.io's S3 listing (for historical) or constructed by the application based on the operational mode and any user-provided dates (for daily and on-demand).
+
        ```bash
        docker-compose run --rm discoverer discoverer on-demand --dates YYYY-MM-DD,YYYY-MM-DD,...
        ```
