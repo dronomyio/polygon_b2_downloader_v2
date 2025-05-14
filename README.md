@@ -1,13 +1,15 @@
 # Polygon.io to Backblaze B2 Downloader (Scalable Version v2)
 
-This application is designed to download flat files (specifically US stocks daily data) from Polygon.io, track their status in a local SQLite database, and upload them to a Backblaze B2 bucket. It is structured to support scalable deployment, for example, using multiple worker instances on platforms like morph.so or Kubernetes.
+This application is designed to download flat files (specifically US Options Day Aggregates) from Polygon.io, track their status in a local SQLite database, and upload them to a Backblaze B2 bucket. It is structured to support scalable deployment, for example, using multiple worker instances on platforms like morph.so or Kubernetes.
+
+The target S3 path for US Options Day Aggregates is `us_options_opra/day_aggs_v1/`.
 
 ## Architecture Overview
 
 The application consists of two main components (roles):
 
 1.  **Discoverer/Scheduler:**
-    *   Identifies files to be processed from Polygon.io based on the operational mode (historical, daily, on-demand).
+    *   Identifies US Options Day Aggregates files to be processed from Polygon.io (using the `us_options_opra/day_aggs_v1/` path) based on the operational mode (historical, daily, on-demand).
     *   Adds these files as tasks to a shared SQLite database with a "pending" status. It avoids adding duplicate `file_key` entries.
     *   Typically run as a scheduled job (for daily tasks) or a one-off task (for historical backfill or on-demand requests).
 
@@ -15,7 +17,7 @@ The application consists of two main components (roles):
     *   Multiple worker instances can run concurrently.
     *   Each worker queries the SQLite database for "pending" tasks or tasks that previously failed but are eligible for retry.
     *   Atomically claims a task by updating its status to "processing" and assigning its `worker_id`.
-    *   Downloads the file from Polygon.io.
+    *   Downloads the file from Polygon.io (from the `us_options_opra/day_aggs_v1/` path) using dedicated S3 credentials.
     *   Uploads the file to Backblaze B2.
     *   Updates the file's status in the SQLite database throughout the process (e.g., downloading, downloaded, uploading, completed, failed_download, failed_upload, permanent_failure).
     *   Handles retries for failed operations (up to 2 retries as configured in `db_manager.MAX_RETRIES`).
@@ -23,22 +25,27 @@ The application consists of two main components (roles):
 ## Features
 
 -   Scalable architecture with separate discoverer and worker roles.
+-   Downloads **US Options Day Aggregates** from Polygon.io.
 -   Tracks download and upload status in a local SQLite database (`data/download_tracker.db` by default).
--   Supports historical, daily, and on-demand data processing modes for the discoverer.
+-   Supports historical, daily, and on-demand data processing modes for the discoverer for US Options Day Aggregates.
 -   Uploads downloaded files to a specified Backblaze B2 bucket.
--   Uses a `.env` file for configuration (API keys, bucket details, database URL, log level).
+-   Uses a `.env` file for configuration (API keys, S3 credentials, bucket details, database URL, log level).
 -   Logs errors and manages retries for processing tasks.
 -   Dockerized for deployment, with `docker-compose` support for local execution and role management.
 
 ## Prerequisites
 
 -   Docker and Docker Compose installed on your local machine or deployment environment.
--   Polygon.io API Key.
+-   **Polygon.io Account with S3 Flat File Access Credentials:**
+    *   **S3 Access Key ID** (for `POLYGON_S3_ACCESS_KEY_ID`)
+    *   **S3 Secret Access Key** (for `POLYGON_S3_SECRET_ACCESS_KEY`)
+    *   These are **DIFFERENT** from your general Polygon.io API Key. Obtain them from your Polygon.io dashboard under the "Accessing Flat Files (S3)" section. Ensure these credentials have access to the `us_options_opra/day_aggs_v1/` path in the `flatfiles` bucket.
+-   (Optional) Your general Polygon.io API Key (for `POLYGON_API_KEY`), if you plan to extend the application to use their REST APIs for other purposes.
 -   Backblaze B2 Account with:
-    -   Key ID
-    -   Application Key
-    -   Bucket Name
-    -   S3 Endpoint URL (e.g., `s3.us-west-000.backblazeb2.com`)
+    *   Key ID (for `B2_KEY_ID`)
+    *   Application Key (for `B2_APPLICATION_KEY`)
+    *   Bucket Name (for `B2_BUCKET_NAME`)
+    *   S3 Endpoint URL (e.g., `s3.us-west-000.backblazeb2.com` for `B2_ENDPOINT_URL`)
 
 ## Setup Instructions
 
@@ -52,7 +59,9 @@ The application consists of two main components (roles):
         cp .env.example .env
         ```
     *   Edit the `.env` file with your actual credentials and settings:
-        *   `POLYGON_API_KEY`: Your Polygon.io API key.
+        *   `POLYGON_S3_ACCESS_KEY_ID`: **Your dedicated S3 Access Key ID from Polygon.io for flat file access.**
+        *   `POLYGON_S3_SECRET_ACCESS_KEY`: **Your dedicated S3 Secret Access Key from Polygon.io for flat file access.**
+        *   `POLYGON_API_KEY`: (Optional) Your general Polygon.io API key.
         *   `B2_KEY_ID`: Your Backblaze B2 Key ID.
         *   `B2_APPLICATION_KEY`: Your Backblaze B2 Application Key.
         *   `B2_BUCKET_NAME`: The name of your Backblaze B2 bucket where files will be stored.
@@ -65,7 +74,7 @@ The application consists of two main components (roles):
 
 ## Running the Application with Docker Compose (Recommended for Local Execution)
 
-`docker-compose.yml` is provided to simplify running the discoverer and worker roles.
+`docker-compose.yml` is provided to simplify running the discoverer and worker roles for US Options Day Aggregates.
 
 **1. Build the Docker Image:**
    (This step is often handled automatically by `docker-compose run` or `docker-compose up` if the image doesn't exist, but you can build it explicitly)
@@ -78,25 +87,25 @@ The application consists of two main components (roles):
    ```
 
 **2. Running the Discoverer Role:**
-   The discoverer populates the database with tasks. It's typically run as a one-off command.
+   The discoverer populates the database with tasks for US Options Day Aggregates. It's typically run as a one-off command.
 
-   *   **Historical Mode (to discover all available files, or within a date range):**
+   *   **Historical Mode (to discover all available US Options Day Aggregates files, or within a date range):**
        ```bash
-       # Discover all historical files
+       # Discover all historical US Options Day Aggregates files
        docker-compose run --rm discoverer discoverer historical
 
-       # Discover historical files within a specific date range
+       # Discover historical US Options Day Aggregates files within a specific date range
        docker-compose run --rm discoverer discoverer historical --start_date YYYY-MM-DD --end_date YYYY-MM-DD
        ```
        Replace `YYYY-MM-DD` with actual dates.
 
-   *   **Daily Mode (to discover yesterday's file):**
+   *   **Daily Mode (to discover yesterday's US Options Day Aggregates file):**
        ```bash
        docker-compose run --rm discoverer discoverer daily
        ```
        This is suitable for scheduling via cron or a similar task scheduler.
 
-   *   **On-Demand Mode (to discover files for specific dates):**
+   *   **On-Demand Mode (to discover US Options Day Aggregates files for specific dates):**
        ```bash
        docker-compose run --rm discoverer discoverer on-demand --dates YYYY-MM-DD,YYYY-MM-DD,...
        ```
@@ -131,7 +140,7 @@ The application consists of two main components (roles):
 
 ### Deploying on morph.so (General Guidance)
 
-morph.so is a platform for running cron jobs, background workers, and APIs. Here's how you might adapt this application:
+morph.so is a platform for running cron jobs, background workers, and APIs. Here's how you might adapt this application for US Options Day Aggregates:
 
 1.  **Container Registry:** Push your built Docker image (`polygon-b2-downloader-v2`) to a container registry that morph.so can access (e.g., Docker Hub, GitHub Container Registry, AWS ECR, etc.).
     ```bash
@@ -152,11 +161,11 @@ morph.so is a platform for running cron jobs, background workers, and APIs. Here
         *   You can configure the number of instances (replicas/pods) for this worker service on the morph.so platform to scale processing.
 
 4.  **Environment Variables on morph.so:**
-    *   Securely provide your API keys and other configurations (from your `.env` file) as environment variables to your services/jobs on morph.so. Most platforms have a way to manage secrets or environment variables for deployed applications.
+    *   Securely provide your API keys and other configurations (from your `.env` file, especially the `POLYGON_S3_ACCESS_KEY_ID` and `POLYGON_S3_SECRET_ACCESS_KEY`) as environment variables to your services/jobs on morph.so. Most platforms have a way to manage secrets or environment variables for deployed applications.
 
 ### Deploying on Kubernetes (General Guidance)
 
-Kubernetes offers a more complex but powerful environment.
+Kubernetes offers a more complex but powerful environment for the US Options Day Aggregates downloader.
 
 1.  **Container Registry:** As with morph.so, push your Docker image to a registry accessible by your Kubernetes cluster.
 
@@ -177,25 +186,24 @@ Kubernetes offers a more complex but powerful environment.
         ```
 
 3.  **Configuration and Secrets:**
-    *   Store your API keys and sensitive data in Kubernetes `Secrets`.
-    *   Store non-sensitive configurations (like default log level if not in .env, or bucket names if public) in `ConfigMaps`.
+    *   Store your API keys and S3 credentials in Kubernetes `Secrets`.
+    *   Store non-sensitive configurations in `ConfigMaps`.
     *   Mount these into your pods as environment variables or files.
 
 4.  **Discoverer Role Deployment:**
-    *   **Daily Discoverer:** Use a `CronJob` resource to run the discoverer pod on a schedule (e.g., daily). The `CronJob` spec would define the container using your image and the command `["discoverer", "daily"]`.
-    *   **Historical/On-Demand Discoverer:** Use a `Job` resource for one-off tasks. You can trigger these jobs manually or via other automation.
+    *   **Daily Discoverer:** Use a `CronJob` resource to run the discoverer pod on a schedule (e.g., daily). The `CronJob` spec would define the container using your image and the command `["python", "-m", "src.main", "discoverer", "daily"]`.
+    *   **Historical/On-Demand Discoverer:** Use a `Job` resource for one-off tasks.
 
 5.  **Worker Role Deployment:**
     *   Use a `Deployment` resource for the worker pods. This allows you to specify the number of replicas (pods) and manage updates.
-    *   The container spec in the `Deployment` would use your image and the command `["worker"]`.
+    *   The container spec in the `Deployment` would use your image and the command `["python", "-m", "src.main", "worker"]`.
     *   Mount the `PersistentVolumeClaim` (e.g., `app-data-pvc`) to `/app/data` in the worker pods.
-    *   Consider using a `HorizontalPodAutoscaler` (HPA) if you want to automatically scale the number of worker pods based on CPU/memory or custom metrics (though custom metrics for SQLite queue depth can be tricky).
 
 6.  **Example Kubernetes Manifest Snippets (Conceptual):**
 
     *   **Secret (for .env contents):**
         ```bash
-        # Create from your .env file
+        # Create from your .env file (ensure it contains the correct Polygon S3 keys for Options data)
         kubectl create secret generic app-env --from-env-file=.env
         ```
 
@@ -204,7 +212,7 @@ Kubernetes offers a more complex but powerful environment.
         apiVersion: batch/v1
         kind: CronJob
         metadata:
-          name: discoverer-daily
+          name: discoverer-daily-options
         spec:
           schedule: "0 1 * * *" # Example: Run at 1 AM UTC daily
           jobTemplate:
@@ -233,16 +241,16 @@ Kubernetes offers a more complex but powerful environment.
         apiVersion: apps/v1
         kind: Deployment
         metadata:
-          name: worker-deployment
+          name: worker-deployment-options
         spec:
           replicas: 3 # Example: 3 worker pods
           selector:
             matchLabels:
-              app: polygon-worker
+              app: polygon-worker-options
           template:
             metadata:
               labels:
-                app: polygon-worker
+                app: polygon-worker-options
             spec:
               restartPolicy: Always
               volumes:
@@ -262,7 +270,7 @@ Kubernetes offers a more complex but powerful environment.
         ```
 
 **Important Note on SQLite and Concurrency:**
-SQLite is a file-based database. While it supports concurrent reads, writes are typically serialized (one writer at a time for the whole database). With multiple worker pods accessing the same SQLite database file over a shared volume (like NFS or some cloud provider block storage in ReadWriteMany mode, or ReadWriteOnce if all pods are on the same node), you might encounter write contention or performance issues if write operations are very frequent and numerous. The `db_manager.py` uses standard SQLAlchemy practices which should handle SQLite's locking, but at high scale, this could become a bottleneck. For very high-concurrency needs, migrating to a server-based database like PostgreSQL or MySQL within your Kubernetes cluster or as a managed service would be a more robust long-term solution.
+SQLite is a file-based database. While it supports concurrent reads, writes are typically serialized. With multiple worker pods accessing the same SQLite database file over a shared volume, you might encounter write contention or performance issues if write operations are very frequent. The `db_manager.py` uses standard SQLAlchemy practices which should handle SQLite's locking, but at high scale, this could become a bottleneck. For very high-concurrency needs, migrating to a server-based database like PostgreSQL or MySQL would be a more robust long-term solution.
 
 ## Project Structure
 
@@ -282,11 +290,11 @@ polygon_b2_downloader_v2/
     │   ├── __init__.py
     │   ├── config.py         # Configuration loading and logging setup
     │   ├── db_manager.py     # SQLite database interactions and schema
-    │   ├── polygon_client.py # Polygon.io S3 API interaction
+    │   ├── polygon_client.py # Polygon.io S3 API interaction (for US Options Day Aggregates)
     │   └── b2_client.py      # Backblaze B2 S3 API interaction
     ├── discoverer/
     │   ├── __init__.py
-    │   └── main.py           # Logic for discoverer/scheduler role
+    │   └── main.py           # Logic for discoverer/scheduler role (for US Options Day Aggregates)
     └── worker/
         ├── __init__.py
         └── main.py           # Logic for worker role

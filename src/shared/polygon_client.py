@@ -33,12 +33,12 @@ class PolygonClient:
         self.bucket_name = "flatfiles" # Polygon's S3 bucket name for flat files
         logger.info(f"PolygonClient initialized for bucket 	{self.bucket_name}	 at endpoint {endpoint_url} using dedicated S3 credentials.")
 
-    def list_us_stocks_daily_files(self, start_date: str = None, end_date: str = None) -> list[str]:
+    def list_us_options_daily_files(self, start_date: str = None, end_date: str = None) -> list[str]:
         """
-        Lists available "US stocks daily" files (day_aggs_v1) from Polygon.io.
-        File path format: us_stocks_sip/day_aggs_v1/YYYY/YYYY-MM-DD.csv.gz
+        Lists available "US options daily" files (day_aggs_v1) from Polygon.io.
+        File path format: us_options_opra/day_aggs_v1/YYYY/YYYY-MM-DD.csv.gz
         """
-        prefix = "us_stocks_sip/day_aggs_v1/"
+        prefix = "us_options_opra/day_aggs_v1/"
         all_files = []
         paginator = self.s3_client.get_paginator("list_objects_v2")
         try:
@@ -123,8 +123,8 @@ if __name__ == "__main__":
             start_test_date = (today - timedelta(days=7)).strftime("%Y-%m-%d")
             end_test_date = (today - timedelta(days=1)).strftime("%Y-%m-%d")
             
-            logger.info(f"Listing US stocks daily files from {start_test_date} to {end_test_date}...")
-            files = client.list_us_stocks_daily_files(start_date=start_test_date, end_date=end_test_date)
+            logger.info(f"Listing US options daily files from {start_test_date} to {end_test_date}...")
+            files = client.list_us_options_daily_files(start_date=start_test_date, end_date=end_test_date)
             
             if files:
                 logger.info(f"Found {len(files)} files:")
@@ -142,7 +142,7 @@ if __name__ == "__main__":
                 else:
                     logger.error(f"Failed to download {file_to_download}")
             else:
-                logger.info("No files found in the specified date range for US stocks daily data for testing.")
+                logger.info("No files found in the specified date range for US options daily data for testing.")
 
     except ImportError as ie:
         print(f"ImportError during PolygonClient test: {ie}. Ensure you run as a module (e.g., python -m src.shared.polygon_client) and .env is in project root.")
