@@ -84,7 +84,7 @@ The application consists of two main components (roles):
 
    *   **Historical Mode (to discover all available files, or within a date range):**
 
-   *   ```
+   *   
        Historical Mode:
 When you run the discoverer in historical mode (e.g., discoverer historical or discoverer historical --start_date YYYY-MM-DD --end_date YYYY-MM-DD):
 The PolygonClient's list_us_stocks_daily_files method is called. This method queries Polygon.io's S3 storage for files matching the prefix us_stocks_sip/day_aggs_v1/.
@@ -92,7 +92,7 @@ Polygon.io itself organizes its files using this date-based path structure. So, 
 The list_us_stocks_daily_files method in our PolygonClient then parses the date from each S3 key it finds to see if it falls within the optional start_date and end_date range you might provide. If no range is provided, it attempts to list all matching files.
 Source of YYYY, MM, DD: Directly from the S3 object keys provided by Polygon.io, then filtered by the application if a date range is specified.
 
-       ```
+     
        ```bash
        # Discover all historical files
        docker-compose run --rm discoverer discoverer historical
