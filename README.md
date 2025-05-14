@@ -80,7 +80,19 @@ The application consists of two main components (roles):
 **2. Running the Discoverer Role:**
    The discoverer populates the database with tasks. It's typically run as a one-off command.
 
+   
+
    *   **Historical Mode (to discover all available files, or within a date range):**
+
+   *   ```
+       Historical Mode:
+When you run the discoverer in historical mode (e.g., discoverer historical or discoverer historical --start_date YYYY-MM-DD --end_date YYYY-MM-DD):
+The PolygonClient's list_us_stocks_daily_files method is called. This method queries Polygon.io's S3 storage for files matching the prefix us_stocks_sip/day_aggs_v1/.
+Polygon.io itself organizes its files using this date-based path structure. So, the S3 keys returned by Polygon.io (via the list_objects_v2 S3 API call) will already have the YYYY/YYYY-MM-DD.csv.gz format.
+The list_us_stocks_daily_files method in our PolygonClient then parses the date from each S3 key it finds to see if it falls within the optional start_date and end_date range you might provide. If no range is provided, it attempts to list all matching files.
+Source of YYYY, MM, DD: Directly from the S3 object keys provided by Polygon.io, then filtered by the application if a date range is specified.
+
+       ```
        ```bash
        # Discover all historical files
        docker-compose run --rm discoverer discoverer historical
