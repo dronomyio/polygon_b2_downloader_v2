@@ -343,3 +343,55 @@ polygon_b2_downloader_v2/
 
 Application logs are printed to the console (stdout/stderr), making them easy to capture by Docker, Docker Compose, morph.so, or Kubernetes logging systems.
 
+## Conceptual Architecture
+
+conceptual architecture diagram for the Polygon B2 Downloader application. Please find it attached.
+Here is an explanation of the components and their interactions as depicted in the diagram:
+
+## Polygon B2 Downloader - Architecture Explained:
+
+# User / Operator: This represents you, interacting with the system. You initiate operations by running docker-compose commands in your terminal (CLI commands).
+
+# .env File: This file, located in your project root, stores sensitive configuration data like your API keys for Polygon.io and Backblaze B2, as well as other settings like bucket names and endpoint URLs. Docker Compose reads this file to inject these settings as environment variables into the services it manages.
+
+# Docker Compose: This tool orchestrates the different services (containers) that make up the application. Based on the docker-compose.yml file, it starts, stops, and manages the Discoverer and Worker services. It also handles the creation and management of the shared Docker volume for the SQLite database.
+
+## Discoverer Service (Docker Container):
+
+# Input: Receives commands (e.g., discoverer historical, discoverer daily) and parameters like start/end dates from the User via docker-compose run ....
+
+# Interaction with Polygon.io S3: It connects to the Polygon.io S3 service (an external system) using the provided S3 credentials to list the available financial data files for the specified dataset (e.g., US Stocks Daily Aggregates) and date range.
+
+# Interaction with Shared SQLite Database: For each relevant file found on Polygon.io S3, the Discoverer creates a new task entry in the Shared SQLite Database. This entry typically includes the file key (S3 path), its date, and an initial status (e.g., pending).
+
+## Worker Service (Docker Container):
+
+# Polling Task Database: The Worker continuously polls the Shared SQLite Database at regular intervals (e.g., every 10 seconds) to check for new tasks with a pending status.
+
+# File Download from Polygon.io S3: When a pending task is found, the Worker connects to Polygon.io S3 and downloads the specified data file to a temporary local directory within its container.
+
+# Database Update (Downloaded): After a successful download, the Worker updates the task's status in the Shared SQLite Database to downloaded.
+
+# File Upload to Backblaze B2 S3: The Worker then connects to your Backblaze B2 S3 bucket (an external system) using your B2 credentials and uploads the downloaded file from its temporary local path to the corresponding path in your B2 bucket.
+
+# Database Update (Completed/Failed): Upon successful upload, the Worker updates the task's status in the Shared SQLite Database to completed. If any step fails (download or upload), it updates the status to failed or permanent_failure after retries (if implemented).
+
+# Local Cleanup: After a successful upload (or a permanent failure where no more retries are needed), the Worker deletes the temporary local copy of the downloaded file from its container to free up space.
+
+## Shared SQLite Database (Docker Volume):
+
+This is a persistent database file (e.g., download_tracker.db) stored in a Docker-managed volume (like app_data in your setup). This ensures the task data persists even if the containers are stopped and restarted.
+It acts as the central communication and coordination point between the Discoverer (which writes new tasks) and the Worker(s) (which read and update tasks).
+
+# Polygon.io S3 Service (External): This is the third-party service provided by Polygon.io that hosts the raw financial data files. The application reads (lists and downloads) from this service.
+
+# Backblaze B2 S3 Service (External): This is your chosen cloud storage provider. The application writes (uploads) the processed data files to your bucket on this service.
+
+## Data Flow Summary:
+
+The user initiates a discovery process.
+The Discoverer finds files on Polygon.io and creates tasks in the SQLite database.
+The Worker picks up tasks from the database, downloads files from Polygon.io, uploads them to Backblaze B2, and updates task statuses in the database.
+This architecture allows for a decoupled system where the discovery of files and the processing/transferring of files are handled by separate, scalable components, coordinated through a persistent task queue.
+I hope this explanation and the diagram are helpful! Let me know if you have any questions or would like any part clarified.
+
