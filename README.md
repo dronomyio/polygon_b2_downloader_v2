@@ -345,6 +345,9 @@ Application logs are printed to the console (stdout/stderr), making them easy to
 
 ## Conceptual Architecture
 
+![polygon_b2_downloader_architecture](https://github.com/user-attachments/assets/ef92ac0d-ae31-4cf0-8b21-8ff7b991a0b4)
+
+
 conceptual architecture diagram for the Polygon B2 Downloader application. Please find it attached.
 Here is an explanation of the components and their interactions as depicted in the diagram:
 
