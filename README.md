@@ -398,3 +398,35 @@ The Worker picks up tasks from the database, downloads files from Polygon.io, up
 This architecture allows for a decoupled system where the discovery of files and the processing/transferring of files are handled by separate, scalable components, coordinated through a persistent task queue.
 I hope this explanation and the diagram are helpful! Let me know if you have any questions or would like any part clarified.
 
+```
+1. morph.so clouse
+  
+instance:
+1. morphvm_1essaldr this one is for trade - usually the instance is suspended, so resume it.
+
+2. ssh to the machine from mac
+
+ssh morphvm_1essaldr@morph.so
+
+
+a) cd polygon
+
+b) modify the .env - comment out the one u don't and focus on the year you are interested
+
+c) cd src/
+  ls
+  vi main.py
+  cd shared/
+  vi polygon_client.py
+  check if it's for the quote or the trade
+
+d) docker-compose down
+   docker-compose run --rm discoverer discoverer historical --start_date 2025-01-01 --end_date 2025-09-29
+  docker-compose up --scale worker=3 -d worker
+  #check the files uploaded
+  docker-compose logs -f
+
+
+  go to blackblaze and check the uploads
+  ```
+
